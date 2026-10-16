@@ -1,0 +1,126 @@
+# =============================================================================
+# Indonesian TTS Fine-Tuning — Project Configuration
+# =============================================================================
+# This file is the single source of truth for paths and hyperparameters. The
+# Colab notebook (Indonesian_TTS_FineTuning.ipynb) rewrites a few of the
+# `train.*` keys based on the active GPU in Section 3, then re-dumps this file
+# back to disk. Everything else (paths, dataset splits, eval, inference) stays
+# put.
+#
+# Schema is a flat dotted namespace so both the notebook (yaml.safe_load) and
+# the src/ wrappers (config["train"]["batch_size_per_gpu"], etc.) can read it
+# without surprise.
+# =============================================================================
+
+# ----- Workspace -----------------------------------------------------------
+workspace: "./workspace_full"           # all generated artifacts land here
+f5_repo:    "./F5-TTS"                  # path to the vendored F5-TTS source
+
+# ----- Dataset acquisition -------------------------------------------------
+data:
+  raw_dir: "./raw/paparazi_id_tts_v2"   # where PapaRazi/id-tts-v2 shards are extracted
+  repo:    "PapaRazi/id-tts-v2"         # HuggingFace dataset repo
+  parts:   [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]   # the 10 shards we used
+  val_size:  200                        # held-out samples for the val split
+  test_size: 200                        # held-out samples for the test split
+  sample_rate: 24000                    # F5-TTS standard, do not change
+  min_duration: 0.6                     # seconds — drop shorter clips
+  max_duration: 12.0                    # seconds — drop longer clips
+  min_words: 1                          # drop empty / single-character transcripts
+  # Languages kept: anything not tagged with [en]…[/en] in the PapaRazi metadata.
+  # INESCO is added separately for FT-Combined (see configs/inesco_manifest.example.csv).
+
+# ----- Fine-tuning ---------------------------------------------------------
+train:
+  # These four lines are the only ones the notebook rewrites at runtime.
+  dataset_name: "id_tts_full"
+  target_updates: 45000                 # 45K is the thesis-compatible budget
+  save_per_updates: 7500                # snapshot every 7.5K updates
+  keep_last_n_checkpoints: 1            # only the most recent "last" survives
+
+  # GPU-dependent — the notebook overwrites these based on torch.cuda.get_device_name(0).
+  # Defaults below match the T4 profile (lowest common denominator on free Colab).
+  batch_size_per_gpu:   1000
+  grad_accumulation_steps: 2
+  mixed_precision:      "fp16"
+  bnb_optimizer:        true            # 8-bit AdamW when bitsandbytes is available
+
+  # Held constant across all fine-tunes (paper Table II).
+  epochs:           100
+  peak_learning_rate: 1.0e-5
+  warmup_updates:   100
+  optimizer:        "adamw"
+  adam_beta1:       0.9
+  adam_beta2:       0.999
+  adam_eps:         1.0e-8
+  weight_decay:     0.01
+  grad_clip:        1.0
+  max_samples:      64                 # sample cap per batch on top of frame cap
+  seed:             42
+
+  # Where the final checkpoint lives (read by src/common.py:final_model_path).
+  final_model_subpath: "checkpoints/id_tts_full/model_45000.pt"
+
+  # Stage the pretrained checkpoint into <project>/pretrained_<basename>
+  # before training. The Gradio UI and finetune_cli.py both expect that file
+  # to exist alongside setting.json. Set to false if you always pass an
+  # explicit --pretrain URL.
+  stage_pretrained:  true
+
+  # Vocab handling — the F5-TTS pinyin tokenizer collapses to character-level
+  # for Latin text, so for Indonesian it is effectively a character tokenizer.
+  tokenizer:         "pinyin"
+  vocab_filename:    "vocab.txt"
+
+# ----- Inference (shared across Base and FT-General/FT-Combined) ----------
+infer:
+  mel_spec_type:    "vocos"
+  target_sample_rate: 24000
+  nfe_step:         32                 # ODE function evaluations
+  cfg_strength:     2.0                # classifier-free guidance
+  sway_coefficient: -1.0               # Sway Sampling, F5-TTS default
+  ode_method:       "euler"
+  seed:             42                 # also seeds [42, 123, 456] for the 3-seed runs
+  seeds_eval:       [42, 123, 456]
+  ref_audio:        "ref_audio/audio_2.wav"
+  ref_text:         "saya membeli tiga buah apel di pasar."
+
+  # F5-TTS DiT hyperparameters (do not change — they are the official F5TTS_v1_Base shape).
+  model_kwargs:
+    dim: 1024
+    depth: 22
+    heads: 16
+    ff_mult: 2
+    conv_layers: 4
+    text_dim: 512
+
+  # Vocoder (Vocos, downloaded automatically by F5-TTS).
+  vocoder_repo: "charactr/vocos-mel-24khz"
+
+# ----- Evaluation ----------------------------------------------------------
+eval:
+  asr_model:        "large-v3"          # OpenAI Whisper (openai-whisper package)
+  asr_language:     "id"
+  asr_fp16:         true
+  sim_model:        "resemblyzer"       # 256-d GE2E d-vectors
+  quality_model:    "SQUIM_SUBJECTIVE"  # torchaudio.pipelines.SQUIM_SUBJECTIVE
+
+  bootstrap:
+    iterations:     1000
+    confidence:     0.95
+    random_state:   42
+
+  # Per-pair (model, sentence) recording — drives the Wilcoxon and per-style CIs.
+  include_breakdown: true               # write Sub % / Del % / Ins % alongside WER
+
+# ----- Systems compared ----------------------------------------------------
+# The notebook compares three "systems" on the same test split. The src/
+# wrappers (src/infer.py, src/evaluate.py, src/compare.py) read this map.
+systems:
+  base:        { tag: "base",        description: "Unmodified F5TTS_v1_Base" }
+  finetuned:   { tag: "finetuned",   description: "FT-General — full fine-tune on PapaRazi/id-tts-v2" }
+  gt:          { tag: "gt",          description: "Ground-truth PapaRazi test clips" }
+
+# ----- Reproducibility -----------------------------------------------------
+# Where to find the F5-TTS internal dataset (raw.arrow, duration.json, vocab.txt).
+f5_data_subpath: "f5_data/id_tts_full_pinyin"
