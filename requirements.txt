@@ -1,0 +1,33 @@
+# Project-specific dependencies for the Indonesian TTS fine-tuning project.
+# The vendored F5-TTS engine (./F5-TTS) is installed in editable mode with
+# `pip install -e F5-TTS` (see README.md, "Option B" of the install section).
+# PyTorch is intentionally NOT pinned here — match the version to your CUDA
+# toolchain as described in README.md.
+
+# --- F5-TTS runtime dependencies (also pulled in by `pip install -e F5-TTS`)
+f5-tts>=1.1.22
+huggingface_hub>=0.25
+
+# --- Audio / signal processing
+soundfile
+librosa
+jiwer
+resemblyzer
+
+# --- Data + training
+numpy
+pandas
+scipy
+tqdm
+matplotlib
+pyarrow
+tabulate
+num2words
+datasets
+
+# --- Notebook (Colab already has most of these; pinned for VS Code parity)
+jupyter
+ipython
+
+# --- Optional: Gradio demo
+# gradio
