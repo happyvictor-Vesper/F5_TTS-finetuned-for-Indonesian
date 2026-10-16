@@ -275,3 +275,70 @@ In the meantime, if you want to reference the work informally, please cite the u
 - [PapaRazi](https://huggingface.co/datasets/PapaRazi/id-tts-v2) and the [INESCO dataset authors](https://data.mendeley.com/datasets/hzrznx3xs5/1) for the speech data.
 - The [ThonburianTTS](https://github.com/biodatlab/thonburian-tts) team for the closest published prior art in adapting F5-TTS to a low-resource language.
 
+---
+
+# Reproducible F5-TTS Gradio Fine-Tuning Guide
+
+you can check this link https://github.com/SWivid/F5-TTS/discussions/143#discussion-7331486
+
+This guide explains how to fine-tune **F5-TTS** using the built-in web-based Gradio interface (`f5-tts_finetune-gradio`). This method provides a user-friendly way to adapt the pre-trained model to custom voices, new characters, or specific languages without needing to manually write complex configuration scripts.
+
+---
+
+## 📋 Prerequisites
+
+Before launching the fine-tuning interface, ensure you have set up your environment properly:
+
+1. **Clone the Repository & Install Locally** (Required for training/fine-tuning scripts):
+   ```bash
+   git clone https://github.com/SWivid/F5-TTS.git
+   cd F5-TTS
+   pip install -e .
+   ```
+
+2. **Verify Dependencies**: Ensure PyTorch with matching CUDA/MPS support and `ffmpeg` are installed on your system.
+
+---
+
+## 🚀 Launching the Fine-Tuning Gradio App
+
+F5-TTS includes a dedicated CLI command to spin up the fine-tuning dashboard:
+
+```bash
+f5-tts_finetune-gradio
+```
+
+Once executed, open the local URL provided in your terminal (typically `http://127.0.0.1:7860`) in your web browser.
+
+---
+
+## 📂 Step-by-Step Fine-Tuning Workflow
+
+### Step 1: Prepare Your Dataset
+* **Audio Format**: Use high-quality audio files (recommended sample rate: **24kHz** or higher to prevent high-frequency noise/artifacts). Avoid heavily compressed or low-sample-rate (e.g., 16kHz) sources if clean studio quality is desired.
+* **Dataset Structure**: Prepare your dataset containing target speech audio clips alongside their corresponding text transcriptions. 
+* **Auto-Slicing**: The Gradio interface provides utilities to upload and process/slice your dataset directly, though keeping manual control over clean segmentations yields better results.
+
+### Step 2: Configure Training Parameters in the Web UI
+Navigate to the training tab in the Gradio app and configure your parameters:
+* **Base Model**: Choose the pre-trained checkpoint to build upon (e.g., `F5TTS_v1_Base`).
+* **Dataset Path**: Point to your processed dataset directory.
+* **Tokenizer**: Select your tokenizer type (`char` is standard for most language adaptations, or custom options if applicable).
+* **Learning Rate (LR)**: Typically set around `1e-4` (adjust based on your dataset size and stability).
+* **Batch Size / Batch Type**: Frame-based or sample-based batching depending on your GPU VRAM limits.
+
+### Step 3: Run and Monitor Training
+* Start the training process directly from the UI.
+* Keep an eye on the training loss curves and generated sample checkpoints to ensure the model is converging properly without generating text-skipping or gibberish outputs.
+
+### Step 4: Test and Validate Checkpoints
+* Use the built-in testing/inference section within the Gradio layout to evaluate your newly saved checkpoints against reference audio prompts.
+* *Note on Inference Best Practices*: Ensure that your reference audio + generated text length stays within safe limits (e.g., under 20 seconds) to avoid word-skipping issues.
+
+---
+
+## 💡 Pro-Tips & Troubleshooting
+
+* **Artifacts or Noise?** If your output audio sounds metallic or contains high-frequency distortion, verify that your training data sample rate is set to **24kHz** rather than lower rates.
+* **Word Skipping / Mismatches:** Ensure your transcriptions are clean, punctuation is properly handled, and your tokenizer settings match the configurations outlined in the main repository guidelines.
+* **VRAM Limitations:** If you experience Out-Of-Memory (OOM) errors, lower your batch size configuration inside the Gradio parameters panel.
