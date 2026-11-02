@@ -44,6 +44,7 @@ For the **why** behind these three conditions and the formal evaluation, see our
 Try it in three clicks — no install required:
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/<your-username>/<your-repo>/blob/main/script/infer.ipynb)
+or you can check this link :https://colab.research.google.com/drive/1kkJ5A3Hijjhs2sEUijg_CUk59qypMxD6?usp=sharing
 
 Or run locally:
 ```bash
